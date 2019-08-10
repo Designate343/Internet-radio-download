@@ -1,7 +1,6 @@
 package com.internet_radio;
 
 import com.internet_radio.pagescraping.DownloadService;
-import com.internet_radio.stations.Stations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -23,7 +22,7 @@ public class App implements CommandLineRunner {
 
     @Override
     public void run(String[] args) {
-        LocalDate localDate = LocalDate.now().minusWeeks(4);
+        LocalDate localDate = LocalDate.now().minusYears(1);
         downloadService.downloadProgrammesAndWriteToDatabase(BBC_6_MUSIC.getStationId(), localDate, null);
     }
 }

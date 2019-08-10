@@ -1,11 +1,11 @@
 package com.internet_radio.pagescraping.bbc;
 
-import com.internet_radio.dao.presenter.PresenterCache;
 import com.internet_radio.dao.presenter.WritePresenterDao;
 import com.internet_radio.dao.programme.WriteProgrammeDao;
 import com.internet_radio.dao.track.WriteTrackDao;
-import com.internet_radio.dataclasses.ProgrammeData;
-import com.internet_radio.dataclasses.Track;
+import com.internet_radio.dao.presenter.Presenter;
+import com.internet_radio.dao.programme.ProgrammeDto;
+import com.internet_radio.dao.track.Track;
 import com.internet_radio.pagescraping.DownloadService;
 import com.internet_radio.stations.Stations;
 import org.jsoup.Connection;
@@ -16,9 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,11 +28,11 @@ public class BbcDownloadService implements DownloadService {
     @Autowired
     private WritePresenterDao writePresenterDao;
     @Autowired
-    private PresenterCache presenterCache;
-    @Autowired
     private WriteProgrammeDao writeProgrammeDao;
     @Autowired
     private WriteTrackDao writeTrackDao;
+
+    private final Map<Presenter, UUID> presenterCache = new HashMap<>();
 
     @Override
     public void downloadProgrammesAndWriteToDatabase(int stationId, LocalDate downloadStart, LocalDate downloadEnd) {
@@ -47,20 +45,20 @@ public class BbcDownloadService implements DownloadService {
         var baseUrl = station.getUrl();
 
         downloadStart.datesUntil(end).forEach(date -> {
-            Set<ProgrammeData> programmesOnDay = getProgrammesOnDay(baseUrl, date);
+            Set<ProgrammeDto> programmesOnDay = getProgrammesOnDay(baseUrl, date);
             writeProgrammesOnDay(programmesOnDay, stationId);
         });
     }
 
-    private Set<ProgrammeData> getProgrammesOnDay(final String baseUrl, LocalDate date) {
-        Set<ProgrammeData> programmes = new HashSet<>();
+    private Set<ProgrammeDto> getProgrammesOnDay(final String baseUrl, LocalDate date) {
+        Set<ProgrammeDto> programmes = new HashSet<>();
         System.out.println("downloading from date " + date.toString());
         String url = baseUrl + date.getYear() + "/" + String.format("%02d", date.getMonthValue()) + "/"
                 + String.format("%02d", date.getDayOfMonth());
         try {
             Connection conn = Jsoup.connect(url);
             Document wholeDocument = conn.get();
-            programmes.addAll(parseBBCSchedulePage.getAllShows(wholeDocument, date));
+            programmes.addAll(parseBBCSchedulePage.getAllProgrammes(wholeDocument, date));
         } catch (IOException e) {
             Logger.getLogger(BbcDownloadService.class.getName()).log(Level.WARNING,
                     "Unable to retrieve shows on date " + date.toString() + "\n" + e.getMessage());
@@ -68,9 +66,9 @@ public class BbcDownloadService implements DownloadService {
         return programmes;
     }
 
-    private void writeProgrammesOnDay(Set<ProgrammeData> programmesPlayed, int stationId) {
+    private void writeProgrammesOnDay(Set<ProgrammeDto> programmesPlayed, int stationId) {
         for (var programme : programmesPlayed) {
-            UUID presenterId = writePresenterDao.writePresenter(programme.getPresenterName(), stationId);
+            UUID presenterId = getPresenterFromCacheOrDbUuid(stationId, programme);
 
             UUID programmeId = writeProgrammeDao.insert(presenterId,
                     programme.getDate(),
@@ -81,6 +79,18 @@ public class BbcDownloadService implements DownloadService {
                 writeTrackDao.writeTrack(track, programmeId, presenterId);
             }
         }
+    }
+
+    private UUID getPresenterFromCacheOrDbUuid(int stationId, ProgrammeDto programme) {
+        var presenter = new Presenter(programme.getPresenterName(), stationId);
+        UUID presenterId;
+        if (presenterCache.containsKey(presenter)) {
+            presenterId = presenterCache.get(presenter);
+        } else {
+            presenterId = writePresenterDao.writePresenter(programme.getPresenterName(), stationId);
+            presenterCache.put(presenter, presenterId);
+        }
+        return presenterId;
     }
 
 }

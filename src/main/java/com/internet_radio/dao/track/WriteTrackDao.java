@@ -1,11 +1,9 @@
 package com.internet_radio.dao.track;
 
-import com.internet_radio.dataclasses.Track;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -17,6 +15,7 @@ public class WriteTrackDao {
 
     public void writeTrack(Track track, UUID programmeId, UUID presenterId) {
         Map<String, Object> params = Map.of(
+                "trackId", UUID.randomUUID().toString(),
                 "trackName", track.getSong_name(),
                 "artistName", track.getArtist(),
                 "programmeId", programmeId.toString(),
@@ -24,8 +23,8 @@ public class WriteTrackDao {
         );
 
         jdbcTemplate.update("INSERT INTO tracks" +
-                " (track_name, track_artist, track_programme_origin_uuid, track_presenter_uuid)" +
-                " VALUES (:trackName, :artistName, :programmeId, :presenterId)",
+                " (track_uuid, track_name, track_artist, track_programme_origin_uuid, track_presenter_uuid)" +
+                " VALUES (:trackId, :trackName, :artistName, :programmeId, :presenterId)",
                 params);
     }
 

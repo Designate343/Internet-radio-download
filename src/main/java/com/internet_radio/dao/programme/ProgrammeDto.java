@@ -1,9 +1,11 @@
-package com.internet_radio.dataclasses;
+package com.internet_radio.dao.programme;
+
+import com.internet_radio.dao.track.Track;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class ProgrammeData {
+public class ProgrammeDto {
 
     private final String presenterName;
     private final LocalDateTime date;
@@ -11,7 +13,7 @@ public class ProgrammeData {
     private final List<Track> tracksPlayed;
     private final String programmeHref;
 
-    public ProgrammeData(String presenter, LocalDateTime date, String description, List<Track> info, String programmeHref) {
+    public ProgrammeDto(String presenter, LocalDateTime date, String description, List<Track> info, String programmeHref) {
     	this.presenterName = presenter;
         this.tracksPlayed = info;
         this.date = date;

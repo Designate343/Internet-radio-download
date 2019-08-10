@@ -1,12 +1,11 @@
 package com.internet_radio.pagescraping.bbc;
 
-import com.internet_radio.dataclasses.ProgrammeData;
-import com.internet_radio.dataclasses.Track;
-import com.internet_radio.date.DateUtilities;
+import com.internet_radio.dao.programme.ProgrammeDto;
 import com.internet_radio.pagescraping.ScrapingTools;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -20,58 +19,55 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static java.util.Collections.emptyList;
+
 @Service
-public class ParseBBCSchedulePage {
+public class ParseBBCSchedulePage extends BbcPageParser {
 
     private static final String css_class_selector = "list-unstyled g-c-l";
-    private static final String css_class_programme_page = "br-blocklink__link block-link__target";
+    private static final String CSS_CLASS_PROGRAMME_PAGE = "br-blocklink__link block-link__target";
 
-    public List<ProgrammeData> getAllShows(Document wholeDocument, LocalDate date) {
-        Element relevantPageSegment = wholeDocument.getElementsByClass(css_class_selector).first();
+    @Autowired
+    private ParseBBCProgrammePage parseBBCProgrammePage;
+
+    public List<ProgrammeDto> getAllProgrammes(Document schedulePageDocument, LocalDate date) {
+        Element relevantPageSegment = schedulePageDocument.getElementsByClass(css_class_selector).first();
         int day = date.getDayOfMonth();
 
-        List<ProgrammeInfoFuture> documents = downloadDocumentsForDay(relevantPageSegment, day);
+        List<Future<Document>> programmeDocumentsForDay = downloadDocumentsForDay(relevantPageSegment, day);
 
-        List<ProgrammeData> programmesOnDay = new ArrayList<>(documents.size());
-        for (ProgrammeInfoFuture programmeInfoFuture : documents) {
-            ProgrammeData programmeData = extractProgrammeDataFromProgrammeDocument(programmeInfoFuture);
-            if (programmeData != null) {
-                programmesOnDay.add(programmeData);
+        List<ProgrammeDto> programmesOnDay = new ArrayList<>(programmeDocumentsForDay.size());
+        for (Future<Document> programmeInfoFuture : programmeDocumentsForDay) {
+            Document programmePage = collectFutureDocument(programmeInfoFuture);
+            if (programmePage == null) {
+                return emptyList();
             }
+            programmesOnDay.add(parseBBCProgrammePage.parseForProgrammeData(programmePage));
         }
 
         return programmesOnDay;
     }
 
-    private ProgrammeData extractProgrammeDataFromProgrammeDocument(ProgrammeInfoFuture programmeInfoFuture) {
-        Document doc = collectFutureDocument(programmeInfoFuture.documentFuture);
-        if (doc == null) {
-            return null;
-        }
-        String presenter = ParseBBCDJPage.getPresenter(doc);
-        String description = ParseBBCDJPage.getDescription(doc);
-        List<Track> allTracksOnProgramme = ParseBBCDJPage.getAllTracks(doc);
-        return new ProgrammeData(presenter, programmeInfoFuture.dateTime, description, allTracksOnProgramme, programmeInfoFuture.url);
-    }
-
-    private List<ProgrammeInfoFuture> downloadDocumentsForDay(Element relevantPageSegment, int day) {
-        List<ProgrammeInfoFuture> documents = new ArrayList<>();
+    private List<Future<Document>> downloadDocumentsForDay(Element relevantPageSegment, int day) {
+        List<Future<Document>> documents = new ArrayList<>();
         ExecutorService service = Executors.newFixedThreadPool(8);
         for (Element eachProgramme : relevantPageSegment.getElementsByClass("grid-wrapper")) {
+
             String dateTimeRaw = eachProgramme.getElementsByClass("broadcast__time gamma").attr("content");
-            LocalDateTime dateTime = DateUtilities.rawBBCDateStringToLocalDateTime(dateTimeRaw.substring(0, dateTimeRaw.indexOf("+") - 3));
-            Elements programme = eachProgramme.getElementsByClass(css_class_programme_page);
+            LocalDateTime dateTime = rawBBCDateStringToLocalDateTime(dateTimeRaw.substring(0, dateTimeRaw.indexOf("+") - 3));
+            if (dateTime == null) {
+                continue;
+            }
+
+            Elements programme = eachProgramme.getElementsByClass(CSS_CLASS_PROGRAMME_PAGE);
             String programmePageHref = programme.attr("href");
             if (dateTime.getDayOfMonth() == day) {
 
                 try {
-                    var programmeInfo = new ProgrammeInfoFuture();
-                    programmeInfo.dateTime = dateTime;
-                    programmeInfo.url = programmePageHref;
-                    programmeInfo.documentFuture = service
+                    Future<Document> documentFuture = service
                             .submit(() -> ScrapingTools.getDocument(programmePageHref));
 
-                    documents.add(programmeInfo);
+                    documents.add(documentFuture);
                 } catch (Exception exception) {
                     service.shutdown();
                     throw new RuntimeException(exception);
@@ -93,12 +89,6 @@ public class ParseBBCSchedulePage {
         }
 
         return document;
-    }
-
-    private static class ProgrammeInfoFuture {
-        private String url;
-        private LocalDateTime dateTime;
-        private Future<Document> documentFuture;
     }
 
 }

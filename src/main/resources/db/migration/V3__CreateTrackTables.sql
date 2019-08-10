@@ -1,4 +1,5 @@
-CREATE TABLE IF NOT EXISTS tracks ( 
+CREATE TABLE IF NOT EXISTS tracks (
+    track_uuid VARCHAR(36) NOT NULL PRIMARY KEY, -- kind of pointless?
     track_name VARCHAR(200) NOT NULL,
     track_artist VARCHAR(200) NOT NULL,
     track_programme_origin_uuid VARCHAR(36) NOT NULL,

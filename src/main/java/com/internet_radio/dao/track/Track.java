@@ -1,4 +1,4 @@
-package com.internet_radio.dataclasses;
+package com.internet_radio.dao.track;
 
 public class Track {
 
