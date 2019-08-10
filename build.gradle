@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+
+    id 'application'
+}
+
+group 'internet-radio-download'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 11
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+    testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.1.5.RELEASE'
+    testImplementation group: 'com.h2database', name: 'h2', version: '1.4.199'
+
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.1.7.RELEASE'
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-jdbc', version: '2.1.7.RELEASE'
+    implementation group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
+    implementation group: 'org.postgresql', name: 'postgresql', version: '42.2.4'
+    implementation group: 'org.flywaydb', name : 'flyway-core', version : '5.2.4'
+}

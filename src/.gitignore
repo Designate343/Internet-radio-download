@@ -1,0 +1,7 @@
+out/*
+.idea/*
+build
+bin*
+.vscode
+/.gradle/
+hi.txt
